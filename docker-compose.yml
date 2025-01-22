@@ -11,6 +11,8 @@ services:
     depends_on:
       - redis
       - postgres
+    networks:
+      - chatbot-network
     restart: always
 
   redis:
@@ -18,6 +20,8 @@ services:
     container_name: redis_server
     ports:
       - "6379:6379" # Expose Redis on port 6379
+    networks:
+      - chatbot-network
     restart: always
 
   postgres:
@@ -31,7 +35,13 @@ services:
       - "5432:5432" # Expose PostgreSQL on port 5432
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    networks:
+      - chatbot-network
     restart: always
 
 volumes:
-  postgres_data
+  postgres_data:
+
+networks:
+  chatbot-network:
+    driver: bridge
