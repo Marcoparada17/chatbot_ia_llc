@@ -1,50 +1,67 @@
-const fs = require('fs').promises;
-const path = require('path');
 const { google } = require('googleapis');
 require('dotenv').config();
 
 const SCOPES = ['https://www.googleapis.com/auth/calendar'];
-const TOKEN_PATH = path.join(process.cwd(), 'token.json');
 
-/**
- * Load credentials from token.json if available.
- */
 async function loadSavedCredentialsIfExist() {
   try {
-    const content = await fs.readFile(TOKEN_PATH);
-    const credentials = JSON.parse(content);
-    const auth = google.auth.fromJSON(credentials);
+    // Fetch the saved credentials from the database
+    const { rows } = await pool.query('SELECT * FROM tokens LIMIT 1');
 
-    // Refresh token if necessary
-    if (auth.credentials.expiry_date < Date.now()) {
+    if (rows.length === 0) {
+      console.log('No saved credentials found in the database.');
+      return null;
+    }
+
+    const credentials = rows[0];
+
+    // Create the Google Auth object from the retrieved credentials
+    const auth = google.auth.fromJSON({
+      type: 'authorized_user',
+      client_id: credentials.client_id,
+      client_secret: credentials.client_secret,
+      refresh_token: credentials.refresh_token,
+    });
+
+    // Check if the token is expired and refresh if necessary
+    if (credentials.expiry_date < Date.now()) {
       console.log('Refreshing access token...');
-      await auth.refreshAccessToken();
-      const refreshedToken = auth.credentials;
+      const { credentials: refreshedToken } = await auth.refreshAccessToken();
+
+      // Save the refreshed token back to the database
       await saveCredentials(refreshedToken);
     }
 
     return auth;
   } catch (err) {
-    console.log('No saved credentials found.');
+    console.error('Error loading credentials from the database:', err);
     return null;
   }
 }
 
-/**
- * Save credentials (including refreshed tokens) to token.json.
- */
 async function saveCredentials(credentials) {
-  const payload = JSON.stringify({
-    type: 'authorized_user',
-    client_id: process.env.GOOGLE_CALENDAR_CLIENT_ID,
-    client_secret: process.env.GOOGLE_CALENDAR_CLIENT_SECRET,
-    refresh_token: credentials.refresh_token,
-    access_token: credentials.access_token,
-    expiry_date: credentials.expiry_date,
-  });
-  await fs.writeFile(TOKEN_PATH, payload);
-}
+  try {
+    await pool.query('DELETE FROM tokens'); // Remove any existing token
 
+    await pool.query(
+      `
+      INSERT INTO tokens (access_token, refresh_token, expiry_date, client_id, client_secret)
+      VALUES ($1, $2, $3, $4, $5);
+      `,
+      [
+        credentials.access_token,
+        credentials.refresh_token,
+        credentials.expiry_date,
+        process.env.GOOGLE_CALENDAR_CLIENT_ID,
+        process.env.GOOGLE_CALENDAR_CLIENT_SECRET,
+      ]
+    );
+
+    console.log('Credentials saved to database.');
+  } catch (err) {
+    console.error('Error saving credentials:', err);
+  }
+}
 /**
  * Authorize the client with saved credentials or trigger manual login.
  */
