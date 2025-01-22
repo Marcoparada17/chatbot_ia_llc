@@ -18,7 +18,6 @@ export const testConnection = async () => {
   try {
     const client = await pool.connect();
     console.log('Database connected successfully');
-
     const createTables = async () => {
       const queries = [
         `
@@ -40,19 +39,8 @@ export const testConnection = async () => {
           timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
         `,
-        `
-        CREATE TABLE IF NOT EXISTS tokens (
-          id SERIAL PRIMARY KEY,
-          access_token TEXT NOT NULL,
-          refresh_token TEXT NOT NULL,
-          expiry_date BIGINT NOT NULL,
-          client_id TEXT NOT NULL,
-          client_secret TEXT NOT NULL,
-          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        );
-        `,
       ];
-
+    
       for (const query of queries) {
         try {
           await pool.query(query);
@@ -62,12 +50,13 @@ export const testConnection = async () => {
         }
       }
     };
-
-    await createTables();
+    
+    createTables();
     client.release();
   } catch (error) {
     console.error('Database connection failed:', error);
     process.exit(1);
   }
 };
+
 export default pool;
