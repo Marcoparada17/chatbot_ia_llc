@@ -1,0 +1,24 @@
+{
+    "id": "msg_wOgsLNuA0BRl7MbyvwxkyHjP",
+    "object": "thread.message",
+    "created_at": 1734469859,
+    "assistant_id": "asst_mSdynyN2FvylQoTrcOz4g4YQ",
+    "thread_id": "thread_4UI1uhOEJdLPClcDBjfn5t49",
+    "run_id": "run_D9uSKyQfOetKmp9ADIR6HgYQ",
+    "status": "completed",
+    "incomplete_details": null,
+    "incomplete_at": null,
+    "completed_at": 1734469860,
+    "role": "assistant",
+    "content": [
+        {
+            "type": "text",
+            "text": {
+                "value": "¡Hola! Soy Luna, el chatbot para el consultorio de la Dra. Ana Castiblanco. Por favor, compárteme tu nombre y la ciudad desde donde escribes para darte más información.",
+                "annotations": []
+            }
+        }
+    ],
+    "attachments": [],
+    "metadata": {}
+}
