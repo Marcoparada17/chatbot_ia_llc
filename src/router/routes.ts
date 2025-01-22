@@ -70,17 +70,9 @@ router.get('/sse', async (req: Request, res: Response) => {
   // Send an initial connection message
   res.write(`data: ${JSON.stringify({ message: 'SSE connection established' })}\n\n`);
 
-  // Periodically send heartbeats to keep the connection alive
-  const intervalId = setInterval(() => {
-    if (sseClient) {
-      sseClient.write(`data: ${JSON.stringify({ message: 'heartbeat' })}\n\n`);
-    }
-  }, 30000); // Send a heartbeat every 30 seconds
-
   // Handle client disconnection
   req.on('close', () => {
     console.log('SSE client disconnected');
-    clearInterval(intervalId); // Stop sending heartbeats
     sseClient = null;
   });
 });

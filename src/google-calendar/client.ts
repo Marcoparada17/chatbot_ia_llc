@@ -6,7 +6,7 @@ require('dotenv').config();
 
 const SCOPES = ['https://www.googleapis.com/auth/calendar'];
 const TOKEN_PATH = path.join(process.cwd(), '..', 'token.json');
-
+console.log(TOKEN_PATH)
 async function loadSavedCredentialsIfExist() {
   try {
     const content = await fs.readFile(TOKEN_PATH);
