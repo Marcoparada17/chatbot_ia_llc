@@ -5,11 +5,11 @@ const { google } = require('googleapis');
 require('dotenv').config();
 
 const SCOPES = ['https://www.googleapis.com/auth/calendar'];
-const TOKEN_PATH = path.join(process.cwd(), '..', 'token.json');
-console.log(TOKEN_PATH)
+const TOKEN_PATH = path.join(process.cwd(), 'token.json');
 async function loadSavedCredentialsIfExist() {
   try {
     const content = await fs.readFile(TOKEN_PATH);
+    console.log(TOKEN_PATH)
     const credentials = JSON.parse(content);
     const auth = google.auth.fromJSON(credentials);
 
