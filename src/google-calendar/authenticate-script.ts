@@ -70,16 +70,23 @@ async function setupGoogleAuth() {
     clientSecret = await input('Enter Google Client Secret: ');
   }
 
+  // Use BACKEND_API_URL for the redirect URI
+  const redirectUrl = currentEnv.BACKEND_API_URL;
+  if (!redirectUrl) {
+    throw new Error('BACKEND_API_URL environment variable is not set. Please configure it in your .env file.');
+  }
+
   const oAuth2Client = new google.auth.OAuth2(
     clientId,
     clientSecret,
-    'http://localhost'
+    redirectUrl // Use the BACKEND_API_URL as the redirect URI
   );
 
   const authUrl = oAuth2Client.generateAuthUrl({
     access_type: 'offline',
     scope: SCOPES,
-    prompt: 'consent'
+    prompt: 'consent',
+    redirect_uri: redirectUrl // Ensure the redirect URI matches
   });
 
   console.log('\nVisit this URL to authorize:');
@@ -97,12 +104,15 @@ async function setupGoogleAuth() {
   const newEnv = [
     `GOOGLE_CALENDAR_CLIENT_ID=${clientId}`,
     `GOOGLE_CALENDAR_CLIENT_SECRET=${clientSecret}`,
-    `GOOGLE_CALENDAR_REFRESH_TOKEN=${tokens.refresh_token}`
+    `GOOGLE_CALENDAR_REFRESH_TOKEN=${tokens.refresh_token}`,
+    `BACKEND_API_URL=${redirectUrl}` // Ensure BACKEND_API_URL is saved
   ];
 
   // Preserve existing variables
   const existingLines = envContent.split('\n').filter(line => {
-    return !line.startsWith('GOOGLE_CALENDAR_') && line.trim() !== '';
+    return !line.startsWith('GOOGLE_CALENDAR_') && 
+           !line.startsWith('BACKEND_API_URL') && 
+           line.trim() !== '';
   });
 
   writeFileSync(envPath, [...existingLines, ...newEnv].join('\n'));

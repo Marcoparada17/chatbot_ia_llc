@@ -53,7 +53,8 @@ export async function authorize(): Promise<Auth.OAuth2Client> {
   // Create new OAuth2 client with mandatory env vars
   const clientId = process.env.GOOGLE_CALENDAR_CLIENT_ID;
   const clientSecret = process.env.GOOGLE_CALENDAR_CLIENT_SECRET;
-  
+  const redirect_url = process.env.BACKEND_API_URL;
+
   if (!clientId || !clientSecret) {
     throw new Error(
       'Missing Google Calendar client credentials in environment variables. ' +
@@ -64,7 +65,7 @@ export async function authorize(): Promise<Auth.OAuth2Client> {
   const oAuth2Client = new google.auth.OAuth2(
     clientId,
     clientSecret,
-    'http://localhost'
+    redirect_url
   );
 
   // Generate and display authorization URL

@@ -515,6 +515,59 @@ router.post('/webhook', async (req: Request, res: Response): Promise<void> => {
   }
 });
 
+router.get('/oauth-callback', (req, res) => {
+  const { code } = req.query;
+  
+  // Display the code in a user-friendly format
+  res.send(`
+    <style>
+      html, body {
+        height: 100%;
+        margin: 0;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        background-color: #f0f0f0;
+      }
+
+      .code-box {
+        padding: 30px;
+        background: #ffffff;
+        border-radius: 12px;
+        font-family: 'Arial', sans-serif;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        text-align: center;
+        max-width: 500px;
+        width: 90%;
+      }
+
+      .code-box h2 {
+        margin-top: 0;
+        color: #333;
+        font-size: 24px;
+      }
+
+      .code-box p {
+        color: #555;
+        font-size: 18px;
+        margin: 15px 0;
+      }
+
+      .code-box strong {
+        color: #1a73e8;
+        font-weight: bold;
+        word-break: break-all;
+      }
+    </style>
+
+    <div class="code-box">
+      <h2>Authorization Code Received</h2>
+      <p>Code: <strong>${code}</strong></p>
+      <p>You can now return to the setup process.</p>
+    </div>
+  `);
+});
+
 
 
 // Health check
