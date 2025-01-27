@@ -357,7 +357,7 @@ router.post('/webhook', async (req: Request, res: Response): Promise<void> => {
 
 
       // Mark message as processed (avoid duplicates)
-      await redis.setex(processedKey, 3600, 'true');  // TTL 1h or as needed
+      await redis.setex(processedKey, 300, 'true');  // TTL 1h or as needed
 
       // 2) Check if a flow was already initiated
       const initiatedKey = `${INITIATED_KEY_PREFIX}:${from}`;

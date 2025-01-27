@@ -4,8 +4,7 @@
   "main": "src/server.ts",
   "scripts": {
     "start": "npx ts-node src/server.ts",
-    "dev": "npx ts-node src/server.ts",
-    "auth": "node src/google-calendar/authenticate-script.js"
+    "auth": "npx ts-node src/google-calendar/authenticate-script.ts"
   },
   "keywords": [],
   "author": "",
