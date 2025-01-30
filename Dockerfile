@@ -4,10 +4,13 @@ FROM node:22
 # Set the working directory
 WORKDIR /usr/src/app
 
+# Install system dependencies (ffmpeg)
+RUN apt-get update && apt-get install -y ffmpeg
+
 # Copy package.json and package-lock.json
 COPY package*.json ./
 
-# Install dependencies
+# Install Node.js dependencies
 RUN npm install
 
 # Copy the rest of the application files
