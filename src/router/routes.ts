@@ -332,6 +332,7 @@ router.post('/webhook', async (req: Request, res: Response): Promise<void> => {
       const from = message.from;
       const messageId = message.id;
       const messageImage = message.image;
+      const messageAudio = message.audio;
       const messageType = message.type || 'text';
       let messageBody = message.text?.body || '';
       
@@ -399,7 +400,7 @@ router.post('/webhook', async (req: Request, res: Response): Promise<void> => {
           messageBody = 'Revisa esta imagen por favor.';
         }
       } else if (messageType === 'audio') {
-        let downloaded_path = await getAndDownloadMedia(messageImage.id, messageType);
+        let downloaded_path = await getAndDownloadMedia(messageAudio.id, messageType);
         messageBody = await createTranscription(downloaded_path)
       }
 
