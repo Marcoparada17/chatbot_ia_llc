@@ -25,14 +25,12 @@ const OPENAI_KEY = process.env.OPENAI_KEY || '';
  * The function uses FormData to upload the file with 'vision' purpose to OpenAI's API.
  * The response includes file metadata like ID, size, creation date and filename.
  */
-export async function getImageID(): Promise<string> {
-  // Build the absolute path to "downloaded_image.jpeg" in the project root
-  const localImagePath = path.resolve(process.cwd(), 'downloaded_image.jpeg');
+export async function getImageID(downloaded_path: string): Promise<string> {
 
   // Prepare form data
   const formData = new FormData();
   formData.append('purpose', 'vision');
-  formData.append('file', fs.createReadStream(localImagePath));
+  formData.append('file', fs.createReadStream(downloaded_path));
 
   // Merge headers from FormData and include Authorization
   const headers = {

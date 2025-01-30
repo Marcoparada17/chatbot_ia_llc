@@ -16,6 +16,7 @@ import { getImageID } from '../openai/upload-image/upload-image';
 import { getAllUsers, getMessagesByUser, insertMessage, insertOrUpdateUser } from '../db/controllers/message_controller';
 import { SendMessageBody } from '../types/types';
 import { BlacklistRequest, BlacklistResponse, RemoveBlacklistResponse } from '../types';
+import { createTranscription } from '../openai/transcript/transcript';
 dotenv.config();
 
 const router = Router();
@@ -388,15 +389,18 @@ router.post('/webhook', async (req: Request, res: Response): Promise<void> => {
 
       // 5) Handle the user’s message content (image, etc.) as you normally do
       let imageId: string | null = null;
-      if (message.type === 'image' && messageImage) {
+      if (messageType === 'image' && messageImage) {
         // Download or process the image
-        await getAndDownloadMedia(messageImage.id);
-        imageId = await getImageID();
+        let downloaded_path = await getAndDownloadMedia(messageImage.id, messageType);
+        imageId = await getImageID(downloaded_path);
         if (messageImage.caption) {
           messageBody = messageImage.caption.trim();
         } else {
           messageBody = 'Revisa esta imagen por favor.';
         }
+      } else if (messageType === 'audio') {
+        let downloaded_path = await getAndDownloadMedia(messageImage.id, messageType);
+        messageBody = await createTranscription(downloaded_path)
       }
 
       // Buffer the message, process with AI, etc.
