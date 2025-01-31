@@ -15,7 +15,7 @@ services:
       - chatbot-network
     restart: always
     volumes:
-      - ./downloaded_media:/usr/src/app # Map the local directory to the container directory to make media files accesible
+      - .:/usr/src/app # Map the local directory to the container directory to make media files accesible
 
   redis:
     image: redis:latest

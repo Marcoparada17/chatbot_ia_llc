@@ -5,7 +5,6 @@ import bot_routes from './router/bot_routes';
 import media_routes from './router/media_routes';
 import { testConnection } from './db/db';
 import cors from 'cors'; // Import CORS middleware
-import path from 'path';
 
 // Load environment variables
 dotenv.config();
