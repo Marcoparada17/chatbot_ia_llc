@@ -5,19 +5,20 @@ import path from 'path';
 
 const router = express.Router();
 
-// Serve static files from the working directory
-router.use(express.static(__dirname));
+// Serve static files from the root directory
+const rootDir = path.join(__dirname, '../../'); // Adjust the path to point to the root directory
+router.use(express.static(rootDir));
 
-// Endpoint to list all files in the working directory
+// Endpoint to list all files in the root directory
 router.get('/list', async (req, res) => {
   try {
-    // Read the contents of the working directory
-    const files = await fs.readdir(__dirname);
+    // Read the contents of the root directory
+    const files = await fs.readdir(rootDir);
 
     // Filter out directories (if any) and return only files
     const fileList = await Promise.all(
       files.map(async (file) => {
-        const filePath = path.join(__dirname, file);
+        const filePath = path.join(rootDir, file);
         const stats = await fs.stat(filePath);
         return stats.isFile() ? file : null;
       })
