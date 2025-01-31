@@ -39,8 +39,17 @@ export const testConnection = async () => {
           timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
         `,
+        `
+        CREATE TABLE IF NOT EXISTS closed_client (
+          id SERIAL PRIMARY KEY,
+          phone_number VARCHAR(255) NOT NULL,
+          long_string TEXT NOT NULL,
+          file_path TEXT NOT NULL,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+        `,
       ];
-    
+      
       for (const query of queries) {
         try {
           await pool.query(query);

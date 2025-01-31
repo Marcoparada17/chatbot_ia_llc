@@ -1,4 +1,4 @@
-import { pushSSEUpdate } from '../../router/routes';
+import { pushSSEUpdate } from '../../router/bot_routes';
 import pool from '../db';
 
 /**
@@ -183,6 +183,30 @@ export const getAllMessages = async () => {
     return rows;
   } catch (error) {
     console.error('Error fetching all messages:', error);
+    throw error;
+  }
+};
+
+/**
+ * Insert a Closed Client
+ * Adds a closed client to the database.
+ */
+export const insertClosedClient = async (
+  phoneNumber: string,
+  longString: string,
+  filePath: string
+) => {
+  const query = `
+    INSERT INTO closed_client (phone_number, long_string, file_path)
+    VALUES ($1, $2, $3)
+  `;
+  const values = [phoneNumber, longString, filePath];
+
+  try {
+    await pool.query(query, values);
+    console.log('Closed client inserted successfully');
+  } catch (error) {
+    console.error('Error inserting closed client:', error);
     throw error;
   }
 };

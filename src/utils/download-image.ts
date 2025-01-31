@@ -14,7 +14,7 @@ dotenv.config(); // Load .env variables
  * @param type - The type of media: "audio" or "image".
  * @returns A promise that resolves with the download path of the file.
  */
-export async function getAndDownloadMedia(mediaId: string, type: 'audio' | 'image'): Promise<string> {
+export async function getAndDownloadMedia(mediaId: string, type: 'audio' | 'image', from: string): Promise<string> {
   const token = process.env.WHATSAPP_API_TOKEN || '';
   if (!token) {
     throw new Error('WHATSAPP_API_TOKEN is missing in .env');
@@ -48,7 +48,7 @@ export async function getAndDownloadMedia(mediaId: string, type: 'audio' | 'imag
     }
 
     // Step 3: Download the file
-    const downloadPath = path.resolve(process.cwd(), `downloaded_media.${fileExtension}`);
+    const downloadPath = path.resolve(process.cwd(), `downloaded_media_${from}.${fileExtension}`);
 
     if (type === 'audio') {
       // Stream the audio directly to ffmpeg for conversion

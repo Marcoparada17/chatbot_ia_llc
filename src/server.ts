@@ -1,9 +1,11 @@
 import express, { Application } from 'express';
 import dotenv from 'dotenv';
 import bodyParser from 'body-parser';
-import routes from './router/routes';
+import bot_routes from './router/bot_routes';
+import media_routes from './router/media_routes';
 import { testConnection } from './db/db';
 import cors from 'cors'; // Import CORS middleware
+import path from 'path';
 
 // Load environment variables
 dotenv.config();
@@ -16,7 +18,10 @@ app.use(cors()); // Enable CORS for all routes and origins
 app.use(bodyParser.json());
 
 // Use Routes
-app.use('/', routes);
+app.use('/', bot_routes);
+
+// Serve static files from the working directory (/usr/src/app)
+app.use('/media', media_routes);
 
 // Start the server
 testConnection().then(() => {

@@ -1,7 +1,7 @@
 import axios from 'axios';
 import dotenv from 'dotenv';
 import { insertMessage } from '../db/controllers/message_controller';
-import { pushSSEUpdate } from '../router/routes';
+import { pushSSEUpdate } from '../router/bot_routes';
 
 dotenv.config();
 

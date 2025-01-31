@@ -1,4 +1,5 @@
 import { Request, Response, Router } from 'express';
+import path from 'path';
 import dotenv from 'dotenv';
 import { createRunForThread } from '../openai/threads/run-thread';
 import { addMessageToThread } from '../openai/threads/add-message';
@@ -13,10 +14,10 @@ import { normalizedDate } from '../openai/format-date/format-date';
 import { sendImageToWhatsApp, sendMessageToWhatsApp } from '../utils/send-whatsapp-message';
 import { getAndDownloadMedia } from '../utils/download-image';
 import { getImageID } from '../openai/upload-image/upload-image';
-import { getAllUsers, getMessagesByUser, insertMessage, insertOrUpdateUser } from '../db/controllers/message_controller';
+import { getAllUsers, getMessagesByUser, insertClosedClient, insertMessage, insertOrUpdateUser } from '../db/controllers/message_controller';
 import { SendMessageBody } from '../types/types';
-import { BlacklistRequest, BlacklistResponse, RemoveBlacklistResponse } from '../types';
 import { createTranscription } from '../openai/transcript/transcript';
+
 dotenv.config();
 
 const router = Router();
@@ -50,8 +51,6 @@ La duración del procedimiento es de 1 hora y media aproximadamente bajo anestes
     message: "Hola! ayer te contactaste para la promo de Otoplastia. Te tengo en el sistema, pero para poder aplicar la promoción debemos agendar la valoración. ¿Cuéntame si te interesa o qué duda tienes?",
   },
 ];
-
-
 
 let sseClient: Response | null = null; // Explicitly define the type of sseClient
 
@@ -392,7 +391,7 @@ router.post('/webhook', async (req: Request, res: Response): Promise<void> => {
       let imageId: string | null = null;
       if (messageType === 'image' && messageImage) {
         // Download or process the image
-        let downloaded_path = await getAndDownloadMedia(messageImage.id, messageType);
+        let downloaded_path = await getAndDownloadMedia(messageImage.id, messageType, from);
         imageId = await getImageID(downloaded_path);
         if (messageImage.caption) {
           messageBody = messageImage.caption.trim();
@@ -400,7 +399,7 @@ router.post('/webhook', async (req: Request, res: Response): Promise<void> => {
           messageBody = 'Revisa esta imagen por favor.';
         }
       } else if (messageType === 'audio') {
-        let downloaded_path = await getAndDownloadMedia(messageAudio.id, messageType);
+        let downloaded_path = await getAndDownloadMedia(messageAudio.id, messageType, from);
         messageBody = await createTranscription(downloaded_path)
       }
 
@@ -456,7 +455,7 @@ router.post('/webhook', async (req: Request, res: Response): Promise<void> => {
             return;
           }
           const transformedDate = parseStartToTimeSlot(dateMatch, 60);
-          const event = await bookEvent(authForBooking, transformedDate, "Cita Otoplastia");
+          const event = await bookEvent(authForBooking, transformedDate, "Cita Otoplastia para " + from);
           console.log("Created event response:", event);
           if (event.status !== 'confirmed') {
             await sendMessageToWhatsApp(phoneNumberId, from, "Lo sentimos pero al parecer la fecha seleccionada ya no está disponible o ha ocurrido un error. Por favor, selecciona otra fecha.");
@@ -472,7 +471,13 @@ router.post('/webhook', async (req: Request, res: Response): Promise<void> => {
 - *Evaluación*: Ella te explicará el procedimiento de la cirugía, los cuidados necesarios y responderá a todas tus dudas.
 - *Recomendaciones*: También te indicará si necesitas realizar algún examen previo a la cirugía.`
           );
-          sendMessageToWhatsApp(phoneNumberId, from, "Si tienes alguna duda o necesitas reprogramar la cita, no dudes en escribirnos. ¡Estamos para ayudarte!");
+          // Step 3: Add User Message to Thread
+          await addMessageToThread(threadId, "Por favor devuelve los datos del cliente", `/usr/src/app/downloaded_media_${from}.jpg`);
+
+          // Step 4: Start Run and Stream Response
+          const collected_data = await createRunForThread(threadId);
+          const filePath = path.join(__dirname, `downloaded_media_${from}.jpg`);
+          await insertClosedClient(from, collected_data, filePath);
           res.sendStatus(200);
           return;
 
