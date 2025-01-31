@@ -472,7 +472,7 @@ router.post('/webhook', async (req: Request, res: Response): Promise<void> => {
 - *Recomendaciones*: También te indicará si necesitas realizar algún examen previo a la cirugía.`
           );
           // Step 3: Add User Message to Thread
-          await addMessageToThread(threadId, "Por favor devuelve los datos del cliente", `/usr/src/app/downloaded_media_${from}.jpg`);
+          await addMessageToThread(threadId, "Por favor devuelve los datos del cliente");
 
           // Step 4: Start Run and Stream Response
           const collected_data = await createRunForThread(threadId);
