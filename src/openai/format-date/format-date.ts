@@ -7,17 +7,19 @@ export const normalizedDate = async (userMessage: string) => {
   const body = {
     model: "gpt-4",
     messages: [
-      { role: "system", content:   `Eres un asistente útil que transforma expresiones de fecha/hora en lenguaje natural en un formato "DÍA HH:MM", usando el formato de 24 horas. Ejemplo:
-        "Martes a las 9am" -> "Martes 09:00"
-        "Miércoles a las 5pm" -> "Miércoles 17:00"
-        "Lunes 10am" -> "Lunes 10:00"
-        Si no se indican los minutos, asume ":00".
-        Solo debes devolver el formato esperado, sin incluir comillas o ningun otro caracter o palabra.
-        Siempre el mensaje que recibiras siempre sera un dia de la semana y una hora.
-        Si dice a "Martes a las 5", siempre debes asumir que es a las 17:00.
-        Solo devolveras horas de "Oficina" de 8am a 6pm.
-        Si se te pregunta cualquiera hora fuera del horario de "Oficina", debes devolver "No puedo ayudarte en este momento".
-        Si se te pregunta "Jueves a las 9", siempre hara referencia a la mañana. Lo mismo para cualquier horario comprendido entre 8am a 6pm.`
+      { role: "system", content:   `Eres un asistente útil que transforma expresiones de fecha/hora en lenguaje natural en un formato estructurado. Si la entrada se refiere a un día de la semana (ej: "Martes"), devuelve "DÍA HH:MM" usando formato de 24h. Si la entrada es una fecha específica (ej: "19 de febrero 2025"), devuelve "YYYY-MM-DD HH:MM". 
+
+Ejemplos:
+- "Martes a las 9am" → "Martes 09:00"
+- "19 febrero 2025 a las 3pm" → "2025-02-19 15:00"
+- "Lunes 10am" → "Lunes 10:00"
+
+Reglas:
+- Usa formato de 24h. "5pm" → "17:00".
+- Si no hay minutos, asume ":00".
+- Horario de oficina: 8am - 5pm (hora de Bogotá). Si la hora está fuera de este rango, responde "No puedo ayudarte en este momento".
+- Solo devuelve el formato solicitado sin texto adicional.
+- Si la entrada no es un día válido o fecha futura, responde "No puedo ayudarte en este momento".`
       },
       { role: "user", content: userMessage },
     ],

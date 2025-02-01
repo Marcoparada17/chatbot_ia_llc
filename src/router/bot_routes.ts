@@ -9,7 +9,7 @@ import { authorize } from '../google-calendar/client';
 import { checkAndSuggestTimes, findFreeTimes, findFreeTimesOnDate } from '../google-calendar/find-available-times';
 import { parseStartToTimeSlot } from '../utils/parse-date';
 import { bookEvent } from '../google-calendar/book-event';
-import { getNextWeekday } from '../utils/get-week-day';
+import { parseNormalizedDate } from '../utils/get-week-day';
 import { normalizedDate } from '../openai/format-date/format-date';
 import { sendImageToWhatsApp, sendMessageToWhatsApp } from '../utils/send-whatsapp-message';
 import { getAndDownloadMedia } from '../utils/download-image';
@@ -440,48 +440,111 @@ router.post('/webhook', async (req: Request, res: Response): Promise<void> => {
 
         }
         case assistantResponse.includes("Agendando ⏳"): {
-          const normalizeDate = await normalizedDate(assistantResponse);
-          if (normalizeDate.startsWith("No")) {
-            await sendMessageToWhatsApp(phoneNumberId, from, "Lo sentimos pero no pudimos encontrar la fecha que deseas. Podrias elegir otra fecha o intentar con otro formato?. Ej: Lunes 10am o Viernes a las 2pm")
+          try {
+              // Step 1: Normalize user input
+              const normalizeDate = await normalizedDate(assistantResponse);
+              
+              // Handle normalization failures
+              if (normalizeDate.startsWith("No")) {
+                  await sendMessageToWhatsApp(
+                      phoneNumberId, 
+                      from, 
+                      "⚠️ Lo sentimos, no pudimos entender la fecha. Por favor usa formatos como:\n" +
+                      "• *Lunes 10am*\n" +
+                      "• *19 de febrero 3pm*\n" +
+                      "• *Viernes a las 14:30*"
+                  );
+                  return;
+              }
+      
+              console.log("Normalized date:", normalizeDate);
+      
+              // Step 2: Parse to ISO timestamp
+              let parsedDate: string;
+              try {
+                  parsedDate = parseNormalizedDate(normalizeDate);
+                  console.log("Parsed ISO date:", parsedDate);
+              } catch (parseError) {
+                  await sendMessageToWhatsApp(
+                      phoneNumberId,
+                      from,
+                      "Solo podemos agendar entre *Lunes-Viernes de 8am a 5pm* (hora de Bogotá)."
+                  );
+                  return;
+              }
+      
+              // Step 3: Verify availability
+              const authForBooking = await authorize();
+              const isAvailable = await findFreeTimesOnDate(authForBooking, parsedDate);
+              
+              if (!isAvailable) {
+                  const altSlots = await findFreeTimes(authForBooking);
+                  await sendMessageToWhatsApp(
+                      phoneNumberId,
+                      from,
+                      "⏳ El horario seleccionado ya está ocupado. Estos son otros disponibles:\n\n" +
+                      altSlots + "\n\n" +
+                      "Responde con el que prefieras (ej: *Jueves 14:00*)"
+                  );
+                  return;
+              }
+      
+              // Step 4: Book appointment
+              const timeSlot = parseStartToTimeSlot(parsedDate, 60);
+              const event = await bookEvent(authForBooking, timeSlot, "Cita Otoplastia para " + from);
+              
+              // Verify event confirmation
+              if (event.status !== 'confirmed' || !event.conferenceData) {
+                  await sendMessageToWhatsApp(
+                      phoneNumberId,
+                      from,
+                      "❌ Error inesperado al crear la cita. Por favor intenta de nuevo."
+                  );
+                  return;
+              }
+      
+              // Step 5: Send confirmation
+              const meetLink = event.conferenceData.entryPoints?.find(e => e.entryPointType === 'video')?.uri || '';
+              
+              await sendMessageToWhatsApp(
+                  phoneNumberId,
+                  from,
+                  `✅ *Cita Confirmada*\n\n` +
+                  `*Fecha:* ${timeSlot.start.toLocaleString('es-CO', { 
+                      weekday: 'long', 
+                      month: 'long', 
+                      day: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit',
+                      timeZone: 'America/Bogota'
+                  })}\n` +
+                  `*Enlace Meet:* ${meetLink}\n\n` +
+                  `_Revisa tu correo electrónico para más detalles. Recuerda:_\n` +
+                  `• Conéctate 5 minutos antes\n` +
+                  `• Buena iluminación y cámara frontal\n` +
+                  `• Ten a mano tu documento de identidad`
+              );
+      
+              // Step 6: Post-booking workflow
+              await addMessageToThread(threadId, "Datos completos del cliente registrado");
+              const collected_data = await createRunForThread(threadId);
+              
+              // Handle attachments if needed
+              const filePath = path.join(__dirname, `client_${from}_docs.zip`);
+              await insertClosedClient(from, collected_data, filePath);
+      
+          } catch (error) {
+              console.error("Booking workflow error:", error);
+              await sendMessageToWhatsApp(
+                  phoneNumberId,
+                  from,
+                  "🚨 Error crítico en el sistema. Por favor contacta a soporte: +57 123 456 7890"
+              );
           }
-          console.log("Normalized date:", normalizeDate);
-          const dateMatch = getNextWeekday(normalizeDate);
-          console.log("Extracted date:", dateMatch);
-          const authForBooking = await authorize();
-          const isTimeAvailable = await findFreeTimesOnDate(authForBooking, dateMatch);
-          if (!isTimeAvailable) {
-            await sendMessageToWhatsApp(phoneNumberId, from, "Lo sentimos pero al parecer la fecha seleccionada ya no está disponible. Por favor, selecciona otra fecha.");
-            res.sendStatus(200);
-            return;
-          }
-          const transformedDate = parseStartToTimeSlot(dateMatch, 60);
-          const event = await bookEvent(authForBooking, transformedDate, "Cita Otoplastia para " + from);
-          console.log("Created event response:", event);
-          if (event.status !== 'confirmed') {
-            await sendMessageToWhatsApp(phoneNumberId, from, "Lo sentimos pero al parecer la fecha seleccionada ya no está disponible o ha ocurrido un error. Por favor, selecciona otra fecha.");
-            res.sendStatus(200);
-            return;
-          }
-          await sendMessageToWhatsApp(phoneNumberId, from,
-            `*Excelente, tu cita ha sido agendada con éxito, recuerda:*
-
-- *Duración*: La cita dura entre 20 y 30 minutos.
-- *Conexión*: Es importante que tengas una buena cámara en tu dispositivo para que la Dra. pueda evaluar adecuadamente.
-- *Presentación*: Durante la cita, la Dra. Ana te hará algunas preguntas sobre tu historial médico y tus expectativas respecto a la Otoplastia.
-- *Evaluación*: Ella te explicará el procedimiento de la cirugía, los cuidados necesarios y responderá a todas tus dudas.
-- *Recomendaciones*: También te indicará si necesitas realizar algún examen previo a la cirugía.`
-          );
-          // Step 3: Add User Message to Thread
-          await addMessageToThread(threadId, "Por favor devuelve los datos del cliente");
-
-          // Step 4: Start Run and Stream Response
-          const collected_data = await createRunForThread(threadId);
-          const filePath = path.join(__dirname, `downloaded_media_${from}.jpg`);
-          await insertClosedClient(from, collected_data, filePath);
+          
           res.sendStatus(200);
           return;
-
-        }
+      }
         case assistantResponse.includes("Revisar 📆"): {
           await sendMessageToWhatsApp(phoneNumberId, from, assistantResponse);
           console.log("Assistant response ", assistantResponse);
