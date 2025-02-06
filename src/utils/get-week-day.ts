@@ -2,8 +2,8 @@
  * Generates an ISO string for the next occurrence of a given weekday and time in Bogota.
  * Example input: "Martes 09:00" → returns ISO string "YYYY-MM-DDTHH:mm:ss-05:00"
  */
-export function getNextWeekday(normalizedDate: string): string {
-  const [weekday, time] = normalizedDate.split(" ");
+export function getNextWeekday(normalisedDate: string): string {
+  const [weekday, time] = normalisedDate.split(" ");
   const [hourStr, minuteStr = "0"] = time.split(":");
   const requestedHour = parseInt(hourStr, 10);
   const requestedMinute = parseInt(minuteStr, 10);

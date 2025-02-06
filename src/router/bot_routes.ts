@@ -9,14 +9,14 @@ import { authorize } from '../google-calendar/client';
 import { checkAndSuggestTimes, findFreeTimes, findFreeTimesOnDate } from '../google-calendar/find-available-times';
 import { parseStartToTimeSlot } from '../utils/parse-date';
 import { bookEvent } from '../google-calendar/book-event';
-import { parseNormalizedDate } from '../utils/get-week-day';
-import { normalizedDate } from '../openai/format-date/format-date';
 import { sendImageToWhatsApp, sendMessageToWhatsApp } from '../utils/send-whatsapp-message';
 import { getAndDownloadMedia } from '../utils/download-image';
 import { getImageID } from '../openai/upload-image/upload-image';
 import { getAllUsers, getMessagesByUser, insertClosedClient, insertMessage, insertOrUpdateUser } from '../db/controllers/message_controller';
 import { SendMessageBody } from '../types/types';
 import { createTranscription } from '../openai/transcript/transcript';
+import { normalisedDate } from '../openai/format-date/format-date';
+import { parseNormalisedDate } from '../utils/get-week-day';
 
 dotenv.config();
 
@@ -442,7 +442,7 @@ router.post('/webhook', async (req: Request, res: Response): Promise<void> => {
         case assistantResponse.includes("Agendando ⏳"): {
           try {
               // Step 1: Normalize user input
-              const normalizeDate = await normalizedDate(assistantResponse);
+              const normalizeDate = await normalisedDate(assistantResponse);
               
               // Handle normalization failures
               if (normalizeDate.startsWith("No")) {
@@ -462,7 +462,7 @@ router.post('/webhook', async (req: Request, res: Response): Promise<void> => {
               // Step 2: Parse to ISO timestamp
               let parsedDate: string;
               try {
-                  parsedDate = parseNormalizedDate(normalizeDate);
+                  parsedDate = parseNormalisedDate(normalizeDate);
                   console.log("Parsed ISO date:", parsedDate);
               } catch (parseError) {
                   await sendMessageToWhatsApp(
@@ -548,7 +548,7 @@ router.post('/webhook', async (req: Request, res: Response): Promise<void> => {
         case assistantResponse.includes("Revisar 📆"): {
           await sendMessageToWhatsApp(phoneNumberId, from, assistantResponse);
           console.log("Assistant response ", assistantResponse);
-          const normalized = await normalizedDate(assistantResponse);
+          const normalized = await normalisedDate(assistantResponse);
           console.log("Normalized date:", normalized);
           const authForCheck = await authorize();
           const responseMessage = await checkAndSuggestTimes(authForCheck, normalized);
