@@ -1,14 +1,13 @@
+/**
+ * Generates an ISO string for the next occurrence of a given weekday and time in Bogota.
+ * Example input: "Martes 09:00" → returns ISO string "YYYY-MM-DDTHH:mm:ss-05:00"
+ */
 export function getNextWeekday(normalizedDate: string): string {
-  // Example input: "Jueves 12:00"
-  // 1) Extract weekday/time
   const [weekday, time] = normalizedDate.split(" ");
   const [hourStr, minuteStr = "0"] = time.split(":");
   const requestedHour = parseInt(hourStr, 10);
   const requestedMinute = parseInt(minuteStr, 10);
 
-  // No AM/PM checks — we assume "12:00" is midday in 24-hour format.
-
-  // 2) Map weekday to numeric index
   const daysOfWeek: string[] = [
     "Domingo", "Lunes", "Martes",
     "Miércoles", "Jueves", "Viernes", "Sábado",
@@ -18,111 +17,105 @@ export function getNextWeekday(normalizedDate: string): string {
     throw new Error(`Invalid weekday provided: ${weekday}`);
   }
 
-  // 3) Get the current time in Colombia by subtracting 5 hours from UTC
   const now: Date = new Date();
-  const nowUtcMillis: number = now.getTime() + (now.getTimezoneOffset() * 60000);
-  // Bogotá time = UTC time - 5 hours
-  const nowInBogota: Date = new Date(nowUtcMillis + (-5) * 3600000);
+  const bogotaNow = new Date(now.toLocaleString('en-US', { timeZone: 'America/Bogota' }));
 
-  // 4) Figure out how many days to move ahead
-  const currentDayIndex: number = nowInBogota.getDay(); // 0 = Sun, 6 = Sat
-  let daysToAdd: number = targetDayIndex - currentDayIndex;
+  const currentDayIndex = bogotaNow.getDay();
+  let daysToAdd = targetDayIndex - currentDayIndex;
   if (daysToAdd < 0) {
     daysToAdd += 7;
   }
 
-  // If it's the same weekday, ensure the requested time is still ahead
+  // If it’s the same weekday, check if the time has passed
   if (daysToAdd === 0) {
-    const currentHour: number = nowInBogota.getHours();
-    const currentMinute: number = nowInBogota.getMinutes();
+    const currentHour = bogotaNow.getHours();
+    const currentMinute = bogotaNow.getMinutes();
     if (
       requestedHour < currentHour ||
       (requestedHour === currentHour && requestedMinute <= currentMinute)
     ) {
-      // time already passed => jump to next week
       daysToAdd += 7;
     }
   }
 
-  // 5) Move date to the target weekday
-  nowInBogota.setDate(nowInBogota.getDate() + daysToAdd);
+  bogotaNow.setDate(bogotaNow.getDate() + daysToAdd);
+  bogotaNow.setHours(requestedHour, requestedMinute, 0, 0);
 
-  // 6) Set the requested HH:mm (still in Colombia time)
-  nowInBogota.setHours(requestedHour, requestedMinute, 0, 0);
+  const year = bogotaNow.getFullYear();
+  const month = String(bogotaNow.getMonth() + 1).padStart(2, "0");
+  const day = String(bogotaNow.getDate()).padStart(2, "0");
+  const hour = String(bogotaNow.getHours()).padStart(2, "0");
+  const minute = String(bogotaNow.getMinutes()).padStart(2, "0");
+  const second = String(bogotaNow.getSeconds()).padStart(2, "0");
 
-  // 7) Return an explicit “YYYY-MM-DDTHH:mm:ss-05:00” string
-  const year: number = nowInBogota.getFullYear();
-  const month: string = String(nowInBogota.getMonth() + 1).padStart(2, "0");
-  const day: string = String(nowInBogota.getDate()).padStart(2, "0");
-  const hour: string = String(nowInBogota.getHours()).padStart(2, "0");
-  const minute: string = String(nowInBogota.getMinutes()).padStart(2, "0");
-  const second: string = String(nowInBogota.getSeconds()).padStart(2, "0");
   return `${year}-${month}-${day}T${hour}:${minute}:${second}-05:00`;
 }
 
-export function parseNormalizedDate(normalizedDate: string): string {
-  // Check if the input is a specific date (YYYY-MM-DD HH:MM)
-  const isSpecificDate = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/.test(normalizedDate);
+/**
+ * Parses a string like "2025-02-09 09:00" or "Martes 09:00".
+ * Returns an ISO string with -05:00 if valid and within office hours.
+ */
+export function parseNormalisedDate(normalisedDate: string): string {
+  const isSpecificDate = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/.test(normalisedDate);
 
   if (isSpecificDate) {
-      const [datePart, timePart] = normalizedDate.split(' ');
-      const [year, month, day] = datePart.split('-').map(Number);
-      const [hours, minutes] = timePart.split(':').map(Number);
+    const [datePart, timePart] = normalisedDate.split(' ');
+    const [year, month, day] = datePart.split('-').map(Number);
+    const [hours, minutes] = timePart.split(':').map(Number);
 
-      // Validate office hours (8am-5pm Bogotá)
-      if (hours < 8 || hours >= 17) {
-          throw new Error('El horario está fuera del horario de oficina (8am-5pm).');
-      }
+    // Validate office hours
+    if (hours < 8 || hours >= 17) {
+      throw new Error('El horario está fuera del horario de oficina (8am-5pm).');
+    }
 
-      // Create ISO string with Bogotá timezone (-05:00)
-      const isoStr = `${year}-${pad(month)}-${pad(day)}T${pad(hours)}:${pad(minutes)}:00-05:00`;
-      const parsedDate = new Date(isoStr);
+    const isoStr = `${year}-${pad(month)}-${pad(day)}T${pad(hours)}:${pad(minutes)}:00-05:00`;
+    const parsedDate = new Date(isoStr);
 
-      // Check if valid date
-      if (isNaN(parsedDate.getTime())) {
-          throw new Error('Fecha inválida.');
-      }
+    if (isNaN(parsedDate.getTime())) {
+      throw new Error('Fecha inválida.');
+    }
 
-      // Check if date is in the future (Bogotá time)
-      const currentBogotaTime = new Date(Date.now() - (5 * 3600 * 1000)); // UTC-5
-      if (parsedDate <= currentBogotaTime) {
-          throw new Error('La fecha y hora ya han pasado.');
-      }
+    // Check if it's in the future
+    const bogotaNow = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Bogota' }));
+    if (parsedDate <= bogotaNow) {
+      throw new Error('La fecha y hora ya han pasado.');
+    }
 
-      return isoStr;
+    return isoStr;
   } else {
-      // Existing logic for weekdays (renamed from getNextWeekday)
-      const [weekday, time] = normalizedDate.split(' ');
-      const [hourStr, minuteStr = '0'] = time.split(':');
-      const requestedHour = parseInt(hourStr, 10);
-      const requestedMinute = parseInt(minuteStr, 10);
+    // We assume "Día HH:MM" format
+    const [weekday, time] = normalisedDate.split(' ');
+    const [hourStr, minuteStr = '0'] = time.split(':');
+    const requestedHour = parseInt(hourStr, 10);
+    const requestedMinute = parseInt(minuteStr, 10);
 
-      const daysOfWeek = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
-      const targetDayIndex = daysOfWeek.indexOf(weekday);
-      if (targetDayIndex === -1) throw new Error(`Día inválido: ${weekday}`);
+    const daysOfWeek = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+    const targetDayIndex = daysOfWeek.indexOf(weekday);
+    if (targetDayIndex === -1) throw new Error(`Día inválido: ${weekday}`);
 
-      const now = new Date();
-      const currentBogotaTime = new Date(now.getTime() - (5 * 3600 * 1000)); // UTC-5
+    const now = new Date();
+    const bogotaNow = new Date(now.toLocaleString('en-US', { timeZone: 'America/Bogota' }));
+    let daysToAdd = targetDayIndex - bogotaNow.getDay();
+    if (daysToAdd < 0) daysToAdd += 7;
 
-      let daysToAdd = targetDayIndex - currentBogotaTime.getDay();
-      if (daysToAdd < 0) daysToAdd += 7;
-
-      // Check if time has passed today
-      if (daysToAdd === 0) {
-          const currentHour = currentBogotaTime.getHours();
-          const currentMinute = currentBogotaTime.getMinutes();
-          if (requestedHour < currentHour || (requestedHour === currentHour && requestedMinute <= currentMinute)) {
-              daysToAdd += 7;
-          }
+    // If it’s the same weekday, check the current time
+    if (daysToAdd === 0) {
+      const currentHour = bogotaNow.getHours();
+      const currentMinute = bogotaNow.getMinutes();
+      if (requestedHour < currentHour || (requestedHour === currentHour && requestedMinute <= currentMinute)) {
+        daysToAdd += 7;
       }
+    }
 
-      const targetDate = new Date(currentBogotaTime);
-      targetDate.setDate(targetDate.getDate() + daysToAdd);
-      targetDate.setHours(requestedHour, requestedMinute, 0, 0);
+    bogotaNow.setDate(bogotaNow.getDate() + daysToAdd);
+    bogotaNow.setHours(requestedHour, requestedMinute, 0, 0);
 
-      // Format to ISO with -05:00 offset
-      const isoStr = targetDate.toISOString().replace('Z', '-05:00');
-      return isoStr;
+    if (requestedHour < 8 || requestedHour >= 17) {
+      throw new Error('El horario está fuera del horario de oficina (8am-5pm).');
+    }
+
+    const isoStr = bogotaNow.toISOString().replace('Z', '-05:00');
+    return isoStr;
   }
 }
 
