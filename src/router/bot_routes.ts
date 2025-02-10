@@ -551,8 +551,13 @@ router.post('/webhook', async (req: Request, res: Response): Promise<void> => {
           const normalized = await normalisedDate(assistantResponse);
           console.log("Normalized date:", normalized);
           const authForCheck = await authorize();
-          const responseMessage = await checkAndSuggestTimes(authForCheck, normalized);
-          await sendMessageToWhatsApp(phoneNumberId, from, responseMessage);
+          const responseMessage = await findFreeTimesOnDate(authForCheck, normalized);
+          if (responseMessage){
+            await sendMessageToWhatsApp(phoneNumberId, from, `Podrias confirmarme ${normalized} esta fecha para estar seguros? Gracias.`);
+          } else{
+            await sendMessageToWhatsApp(phoneNumberId, from, `Disculpa pero la Dra. Esta ocupada para ese dia, podrias indicarme que otra fecha tendrias o quizas otra hora?`);
+
+          }
           res.sendStatus(200);
           return;
         }
