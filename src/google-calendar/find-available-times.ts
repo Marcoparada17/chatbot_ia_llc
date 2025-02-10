@@ -3,22 +3,19 @@
  */
 import { OAuth2Client } from 'google-auth-library';
 import { google } from 'googleapis';
-import { getNextWeekday } from '../utils/get-week-day';
 
 /**
- * Finds up to three free 1-hour slots in the next 7 days (Bogota time).
+ * Find the next free time slots on the user's primary calendar.
  */
 export async function findFreeTimes(auth: OAuth2Client): Promise<string> {
   const calendar = google.calendar({ version: 'v3', auth });
 
-  // Current time in Bogota
-  const bogotaNow = new Date().toLocaleString('en-US', {
-    timeZone: 'America/Bogota'
-  });
-  const now = new Date(bogotaNow);
+  // Current time in Bogota (using UTC as base)
+  const now = new Date();
+  const bogotaOffset = -5 * 60; // Bogota is UTC-5 (no DST)
 
-  const startTime = new Date(now.getTime() + 30 * 60 * 1000); // 1 hour from now
-  const endTime = new Date(now.getTime() + 7 * 24 * 30 * 60 * 1000); // 7 days ahead
+  const startTime = new Date(now.getTime() + 30 * 60 * 1000); // 30 minutes from now
+  const endTime = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000); // 7 days ahead
 
   try {
     const response = await calendar.freebusy.query({
@@ -33,27 +30,32 @@ export async function findFreeTimes(auth: OAuth2Client): Promise<string> {
     const freeTimes: { start: Date; end: Date }[] = [];
     let lastEnd = new Date(startTime);
 
-    // Check if a given date is within office hours
+    // Check if a given UTC date is within Bogota office hours (8 AM - 5 PM)
     const isOfficeTime = (date: Date) => {
-      const bogotaDate = new Date(date.toLocaleString('en-US', {
-        timeZone: 'America/Bogota'
-      }));
-      const day = bogotaDate.getDay();
-      const hour = bogotaDate.getHours();
-      return day >= 1 && day <= 5 && hour >= 8 && hour < 17;
+      // Convert UTC to Bogota time (UTC-5)
+      const bogotaTime = new Date(date.getTime() + bogotaOffset * 60 * 1000);
+      const day = bogotaTime.getUTCDay(); // 0 (Sun) - 6 (Sat)
+      const hour = bogotaTime.getUTCHours();
+      return day >= 1 && day <= 5 && hour >= 8 && hour < 17; // Mon-Fri 8 AM - 5 PM
     };
 
-    // Round to next full hour
+    // Round to next full hour in Bogota time (UTC-5)
     const roundToNextHour = (date: Date) => {
-      const bogotaDate = new Date(date.toLocaleString('en-US', {
-        timeZone: 'America/Bogota'
-      }));
-      const rounded = new Date(bogotaDate);
-      rounded.setMinutes(0, 0, 0);
-      rounded.setHours(rounded.getHours() + 1);
-      return new Date(rounded.toLocaleString('en-US', {
-        timeZone: 'UTC'
-      }));
+      const bogotaTime = new Date(date.getTime() + bogotaOffset * 60 * 1000);
+      const minutes = bogotaTime.getUTCMinutes();
+      const seconds = bogotaTime.getUTCSeconds();
+      const ms = bogotaTime.getUTCMilliseconds();
+
+      if (minutes === 0 && seconds === 0 && ms === 0) {
+        return new Date(date.getTime() + 60 * 60 * 1000); // already on the hour, add 1h
+      }
+
+      // Time to next hour in Bogota time
+      const incrementMs = (60 - minutes) * 60 * 1000 - seconds * 1000 - ms;
+      const nextHourBogota = new Date(bogotaTime.getTime() + incrementMs);
+      
+      // Convert back to UTC (Bogota UTC-5)
+      return new Date(nextHourBogota.getTime() - bogotaOffset * 60 * 1000);
     };
 
     lastEnd = roundToNextHour(lastEnd);
@@ -68,10 +70,7 @@ export async function findFreeTimes(auth: OAuth2Client): Promise<string> {
         if (slotEnd > busyStart) break;
 
         if (isOfficeTime(lastEnd) && isOfficeTime(slotEnd)) {
-          freeTimes.push({
-            start: new Date(lastEnd),
-            end: new Date(slotEnd)
-          });
+          freeTimes.push({ start: new Date(lastEnd), end: new Date(slotEnd) });
         }
 
         lastEnd = slotEnd;
@@ -86,51 +85,56 @@ export async function findFreeTimes(auth: OAuth2Client): Promise<string> {
       const slotEnd = roundToNextHour(lastEnd);
 
       if (isOfficeTime(lastEnd) && isOfficeTime(slotEnd)) {
-        freeTimes.push({
-          start: new Date(lastEnd),
-          end: new Date(slotEnd)
-        });
+        freeTimes.push({ start: new Date(lastEnd), end: new Date(slotEnd) });
       }
       lastEnd = slotEnd;
     }
 
-    const daysOfWeek = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
-    const formattedSlots = freeTimes.map(slot => {
-      const start = new Date(slot.start.toLocaleString('en-US', {
-        timeZone: 'America/Bogota'
-      }));
-      const end = new Date(slot.end.toLocaleString('en-US', {
-        timeZone: 'America/Bogota'
-      }));
-
-      return {
-        day: daysOfWeek[start.getDay()],
-        startTime: start.toLocaleTimeString('es-CO', {
-          hour: '2-digit',
-          minute: '2-digit',
-          hour12: false
-        }),
-        endTime: end.toLocaleTimeString('es-CO', {
-          hour: '2-digit',
-          minute: '2-digit',
-          hour12: false
-        })
-      };
+    // Format slots in Bogota time
+    const formatter = new Intl.DateTimeFormat('es-CO', {
+      timeZone: 'America/Bogota',
+      weekday: 'long',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
     });
 
-    const freeTimesString = formattedSlots
-      .map(slot => `${slot.day} ${slot.startTime} - ${slot.endTime}`)
-      .join('\n');
+    const formattedSlots = freeTimes.map(slot => {
+      const startDate = new Date(slot.start);
+      const endDate = new Date(slot.end);
+
+      // Get day name in Spanish (e.g., "miércoles")
+      const day = formatter.format(startDate).split(', ')[0];
+      const capitalizedDay = day.charAt(0).toUpperCase() + day.slice(1);
+
+      // Get start and end times
+      const startTime = startDate.toLocaleTimeString('es-CO', {
+        timeZone: 'America/Bogota',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false,
+      });
+
+      const endTime = endDate.toLocaleTimeString('es-CO', {
+        timeZone: 'America/Bogota',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false,
+      });
+
+      return `${capitalizedDay} ${startTime} - ${endTime}`;
+    });
 
     console.log('Horarios disponibles (Hora de Bogotá):');
-    console.log(freeTimesString);
+    console.log(formattedSlots.join('\n'));
 
-    return freeTimesString;
+    return formattedSlots.join('\n');
   } catch (error) {
     console.error('Error checking availability:', error);
     throw new Error('Could not check calendar availability.');
   }
 }
+
 
 /**
  * Checks if there's a free 1-hour slot starting at the specified date/time (Bogota).
