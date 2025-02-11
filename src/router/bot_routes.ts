@@ -7,7 +7,7 @@ import { createThread } from '../openai/threads/create-thread';
 import redis from '../redis/client';
 import { authorize } from '../google-calendar/client';
 import { checkAndSuggestTimes, findFreeTimes, findFreeTimesOnDate } from '../google-calendar/find-available-times';
-import { parseStartToTimeSlot } from '../utils/parse-date';
+import { getTodayBogotaWeekday, parseStartToTimeSlot } from '../utils/parse-date';
 import { bookEvent } from '../google-calendar/book-event';
 import { sendImageToWhatsApp, sendMessageToWhatsApp } from '../utils/send-whatsapp-message';
 import { getAndDownloadMedia } from '../utils/download-image';
@@ -444,19 +444,6 @@ router.post('/webhook', async (req: Request, res: Response): Promise<void> => {
               // Step 1: Normalize user input
               const normalizeDate = await normalisedDate(assistantResponse);
               
-              // Handle normalization failures
-              if (normalizeDate.startsWith("No")) {
-                  await sendMessageToWhatsApp(
-                      phoneNumberId, 
-                      from, 
-                      "⚠️ Lo sentimos, no pudimos entender la fecha. Por favor usa formatos como:\n" +
-                      "• *Lunes 10am*\n" +
-                      "• *19 de febrero 3pm*\n" +
-                      "• *Viernes a las 14:30*"
-                  );
-                  return;
-              }
-      
               console.log("Normalized date:", normalizeDate);
       
               // Step 2: Parse to ISO timestamp
@@ -468,7 +455,7 @@ router.post('/webhook', async (req: Request, res: Response): Promise<void> => {
                   await sendMessageToWhatsApp(
                       phoneNumberId,
                       from,
-                      "Solo podemos agendar entre *Lunes-Viernes de 8am a 5pm* (hora de Bogotá)."
+                      "Solo podemos agendar entre *Lunes-Viernes de 8am a 6pm* (hora de Bogotá)."
                   );
                   return;
               }
@@ -482,9 +469,9 @@ router.post('/webhook', async (req: Request, res: Response): Promise<void> => {
                   await sendMessageToWhatsApp(
                       phoneNumberId,
                       from,
-                      "⏳ El horario seleccionado ya está ocupado. Estos son otros disponibles:\n\n" +
+                      "Lo siento :( ⏳ El horario seleccionado ya está ocupado. Estos son otros disponibles:\n\n" +
                       altSlots + "\n\n" +
-                      "Responde con el que prefieras (ej: *Jueves 14:00*)"
+                      "Responde con el que prefieras (ej: *Jueves 14:00*) o por favor envianos otra fecha para verificarla "
                   );
                   return;
               }
@@ -547,7 +534,14 @@ router.post('/webhook', async (req: Request, res: Response): Promise<void> => {
       }
         case assistantResponse.includes("Revisar 📆"): {
           await sendMessageToWhatsApp(phoneNumberId, from, assistantResponse);
-          const normalized = await normalisedDate(assistantResponse);
+          let normalized = await normalisedDate(assistantResponse);
+
+          // 2. Check if it includes "Hoy"
+          if (normalized.includes("Hoy")) {
+            const weekday = getTodayBogotaWeekday(); // e.g. "Miércoles"
+            normalized = normalized.replace("Hoy", weekday);
+          }
+
           const authForCheck = await authorize();
           const responseMessage = await findFreeTimesOnDate(authForCheck, normalized);
           if (responseMessage){
@@ -562,9 +556,11 @@ router.post('/webhook', async (req: Request, res: Response): Promise<void> => {
         }
         case assistantResponse.includes("Por supuesto, permíteme un momento para enviarte unas imágenes de resultados de antes y después de la Otoplastia."): {
           await sendMessageToWhatsApp(phoneNumberId, from, assistantResponse);
-          await sendImageToWhatsApp(phoneNumberId, from, "516657138090828"); // Image ID for "antes1.jpg"
-          await sendImageToWhatsApp(phoneNumberId, from, "947261730233252"); // Image ID for "antes2.jpg"
-          await sendImageToWhatsApp(phoneNumberId, from, "1991622941319988"); // Image ID for "antes3.jpg"
+          await sendImageToWhatsApp(phoneNumberId, from, "https://i.imgur.com/13lzJf6.jpeg"); // Image link uploaded to imgur
+          await sendImageToWhatsApp(phoneNumberId, from, "https://i.imgur.com/rTeQmob.jpeg"); // Image link uploaded to imgur
+          await sendImageToWhatsApp(phoneNumberId, from, "https://i.imgur.com/5l4kOQO.jpeg"); // Image link uploaded to imgur
+          await sendImageToWhatsApp(phoneNumberId, from, "https://i.imgur.com/AK3KwUE.jpeg"); // Image link uploaded to imgur
+
           res.sendStatus(200);
           return;
         }

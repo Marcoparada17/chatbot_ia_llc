@@ -183,6 +183,7 @@ export async function findFreeTimesOnDate(auth: OAuth2Client, dateTime: string):
     throw new Error('No se pudo verificar la disponibilidad en el calendario.');
   }
 }
+
 /**
  * Parses a Spanish date string into a Date object in Bogota timezone.
  * Examples of supported inputs (very naive):
@@ -347,10 +348,9 @@ export async function checkAndSuggestTimes(
           });
 
           return `El horario deseado está disponible. ¿Te gustaría agendar una cita el día: *${daysOfWeek[dayOfWeek]} a las ${localBogotaString}*?`;
-        }
+        } 
 
         // Move forward 30 minutes if not available
-        bogotaTime.setMinutes(bogotaTime.getMinutes() + 30);
       } else {
         // It's weekend — skip to next Monday 8:00 (or next weekday in general)
         bogotaTime.setDate(bogotaTime.getDate() + 1);
