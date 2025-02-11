@@ -44,7 +44,7 @@ const MESSAGE_FLOW = [
 Se realiza para mejorar la apariencia estética o corregir anomalías congénitas (de nacimiento). Durante el procedimiento, se hace una pequeña incisión en la parte posterior de la oreja y se remodela el cartílago auricular para lograr el resultado deseado.
 
 La recuperación suele ser rápida, pero es esencial seguir las indicaciones médicas para obtener los mejores resultados.
-La duración del procedimiento es de 1 hora y media aproximadamente bajo anestesia local. El valor de la otoplastia es de $2.600.000. Sin embargo, este mes contamos con una promoción de 10% de descuento, por lo que el costo es de $2.300.000. Este valor incluye el kit de medicamentos, el kit de curación, el vendaje y la cita de revisión postoperatoria. ¿Te gustaría agendar una consulta virtual con la Dra. Ana? ¿Tienes alguna duda?`,
+La duración del procedimiento es de 1 hora y media aproximadamente bajo anestesia local. El valor de la otoplastia es de $3.340.000. Sin embargo, este mes contamos con una promoción de 10% de descuento, por lo que el costo es de $3.000.000. Este valor incluye el kit de medicamentos, el kit de curación, el vendaje y la cita de revisión postoperatoria. ¿Te gustaría agendar una consulta virtual con la Dra. Ana? ¿Tienes alguna duda?`,
   },
   {
     delay: 86400, // 24 hours
@@ -547,13 +547,12 @@ router.post('/webhook', async (req: Request, res: Response): Promise<void> => {
       }
         case assistantResponse.includes("Revisar 📆"): {
           await sendMessageToWhatsApp(phoneNumberId, from, assistantResponse);
-          console.log("Assistant response ", assistantResponse);
           const normalized = await normalisedDate(assistantResponse);
-          console.log("Normalized date:", normalized);
           const authForCheck = await authorize();
           const responseMessage = await findFreeTimesOnDate(authForCheck, normalized);
           if (responseMessage){
-            await sendMessageToWhatsApp(phoneNumberId, from, `Podrias confirmarme ${normalized} esta fecha para estar seguros? Gracias.`);
+            await checkAndSuggestTimes(phoneNumberId, normalized);
+            // await sendMessageToWhatsApp(phoneNumberId, from, `Podrias confirmarme ${normalized} esta fecha para estar seguros? Gracias.`);
           } else{
             await sendMessageToWhatsApp(phoneNumberId, from, `Disculpa pero la Dra. Esta ocupada para ese dia, podrias indicarme que otra fecha tendrias o quizas otra hora?`);
 
