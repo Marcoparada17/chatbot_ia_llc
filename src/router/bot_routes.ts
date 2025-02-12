@@ -546,6 +546,7 @@ router.post('/webhook', async (req: Request, res: Response): Promise<void> => {
           }
 
           const authForCheck = await authorize();
+          console.log("Normalized result:",normalized)
           const responseMessage = await findFreeTimesOnDate(authForCheck, normalized);
           if (responseMessage){
             await checkAndSuggestTimes(phoneNumberId, normalized);
