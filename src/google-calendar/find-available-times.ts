@@ -53,7 +53,7 @@ export async function findFreeTimes(auth: OAuth2Client): Promise<string> {
       // Time to next hour in Bogota time
       const incrementMs = (60 - minutes) * 60 * 1000 - seconds * 1000 - ms;
       const nextHourBogota = new Date(bogotaTime.getTime() + incrementMs);
-      
+
       // Convert back to UTC (Bogota UTC-5)
       return new Date(nextHourBogota.getTime() - bogotaOffset * 60 * 1000);
     };
@@ -140,17 +140,26 @@ export async function findFreeTimes(auth: OAuth2Client): Promise<string> {
  * Checks if there's a free 1-hour slot starting at the specified date/time (Bogota).
  * Returns true if free, false otherwise.
  */
-export async function findFreeTimesOnDate(auth: OAuth2Client, dateTime: string): Promise<boolean> {
+export async function findFreeTimesOnDate(auth: OAuth2Client, dateTime: string): Promise<string> {
   const calendar = google.calendar({ version: 'v3', auth });
 
-  // Convert input to Bogota time
-  const specificTime = new Date(dateTime);
-  const bogotaTime = new Date(specificTime.toLocaleString('en-US', {
-    timeZone: 'America/Bogota'
-  }));
+  // Parse the input date
+  const parsedDate = parseSpanishDateString(dateTime);
+
+  // Office hours (8 AM - 5 PM)
+  const officeStartHour = 8;
+  const officeEndHour = 17;
+
+  const bogotaTime = new Date(parsedDate.toLocaleString('en-US', { timeZone: 'America/Bogota' }));
+  const hour = bogotaTime.getHours();
+
+  // Check office hours
+  if (hour < officeStartHour || hour >= officeEndHour) {
+    return 'No puedo ayudarte en este momento';
+  }
 
   const startTime = new Date(bogotaTime).toISOString();
-  const endTime = new Date(bogotaTime.getTime() + 30 * 60 * 1000).toISOString(); // 1-hour slot
+  const endTime = new Date(bogotaTime.getTime() + 60 * 60 * 1000).toISOString(); // 1-hour slot
 
   try {
     const response = await calendar.freebusy.query({
@@ -164,26 +173,27 @@ export async function findFreeTimesOnDate(auth: OAuth2Client, dateTime: string):
     const busyPeriods = response.data.calendars?.primary?.busy || [];
     const isAvailable = busyPeriods.length === 0;
 
-    const formattedTime = bogotaTime.toLocaleString('es-ES', {
-      timeZone: 'America/Bogota',
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: false
-    });
-
     if (isAvailable) {
-      console.log(`El horario a las ${formattedTime} está disponible.`);
+      const formattedDate = bogotaTime.toLocaleString('es-CO', {
+        timeZone: 'America/Bogota',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false,
+      }).replace(',', '');
+
+      return formattedDate;
     } else {
-      console.log(`El horario a las ${formattedTime} no está disponible.`);
+      return 'No puedo ayudarte en este momento';
     }
 
-    return isAvailable;
   } catch (error) {
     console.error('Error verificando disponibilidad:', error);
-    throw new Error('No se pudo verificar la disponibilidad en el calendario.');
+    return 'No puedo ayudarte en este momento';
   }
 }
-
 /**
  * Parses a Spanish date string into a Date object in Bogota timezone.
  * Examples of supported inputs (very naive):
@@ -195,100 +205,74 @@ export async function findFreeTimesOnDate(auth: OAuth2Client, dateTime: string):
  * If direct parsing with `new Date(...)` fails, we do a quick fallback.
  */
 function parseSpanishDateString(input: string): Date {
-  // 1) Try direct parse first (e.g. if user already passed "2025-02-19 15:00")
-  let parsedDate = new Date(input);
-  if (!isNaN(parsedDate.getTime())) {
-    return parsedDate;
-  }
-
-  // Helper maps
+  const now = new Date();
+  const lowerInput = input.toLowerCase().trim();
   const daysMap: Record<string, number> = {
     'domingo': 0,
     'lunes': 1,
     'martes': 2,
     'miércoles': 3,
-    'miercoles': 3, // fallback
+    'miercoles': 3,
     'jueves': 4,
     'viernes': 5,
     'sábado': 6,
     'sabado': 6,
+    'hoy': now.getDay(),
+    'mañana': (now.getDay() + 1) % 7,
   };
 
   const monthsMap: Record<string, number> = {
-    'enero': 0,
-    'febrero': 1,
-    'marzo': 2,
-    'abril': 3,
-    'mayo': 4,
-    'junio': 5,
-    'julio': 6,
-    'agosto': 7,
-    'septiembre': 8,
-    'setiembre': 8, // fallback
-    'octubre': 9,
-    'noviembre': 10,
-    'diciembre': 11,
+    'enero': 0, 'febrero': 1, 'marzo': 2, 'abril': 3, 'mayo': 4,
+    'junio': 5, 'julio': 6, 'agosto': 7, 'septiembre': 8,
+    'octubre': 9, 'noviembre': 10, 'diciembre': 11,
   };
 
-  // We'll assume "now" as a reference if only a day-of-week is specified
-  const now = new Date();
-  let resultDate = new Date(now.getTime()); // clone
+  const fullDateTimeRegex = /(\d{1,2})\s+([a-záéíóú]+)\s+(\d{4})\s*(?:a las\s*)?(\d{1,2})(?::(\d{2}))?(am|pm)?/;
+  const weekdayTimeRegex = /((hoy|mañana|domingo|lunes|martes|miércoles|miercoles|jueves|viernes|sábado|sabado))\s*(?:a las)?\s*(\d{1,2})(?::(\d{2}))?(am|pm)?/;
+  const timeOnlyRegex = /(\d{1,2}):(\d{2})/;
 
-  // Lowercase + trim to simplify
-  const lowerInput = input.toLowerCase().trim();
-
-  // Rough patterns we might check
-  // e.g. "19 febrero 2025 a las 3pm"
-  const fullDateTimeRegex = /(\d{1,2})\s+([a-záéíóú]+)\s+(\d{4})\s+(?:a las\s+)?(\d{1,2})(am|pm)?/;
-  // e.g. "Lunes 10am" or "Martes a las 9am" or "Lunes 10:00"
-  const weekdayTimeRegex = /((domingo|lunes|martes|miércoles|miercoles|jueves|viernes|sábado|sabado))(\s+a las)?\s+(\d{1,2})(?::(\d{2}))?(am|pm)?/;
-
-  // 2) Check if it matches a full date pattern (like "19 febrero 2025 a las 3pm")
   let match = lowerInput.match(fullDateTimeRegex);
   if (match) {
-    const dayNum = parseInt(match[1], 10);
-    const monthName = match[2];
-    const yearNum = parseInt(match[3], 10);
-    let hourNum = parseInt(match[4], 10);
-    let ampm = match[5] || ''; // could be 'am', 'pm' or empty
+    const day = parseInt(match[1], 10);
+    const month = monthsMap[match[2]];
+    const year = 2025;
+    let hour = parseInt(match[4], 10);
+    const minutes = parseInt(match[5] || '0', 10);
+    if (match[6] === 'pm' && hour < 12) hour += 12;
+    if (match[6] === 'am' && hour === 12) hour = 0;
 
-    if (ampm === 'pm' && hourNum < 12) hourNum += 12;
-    if (ampm === 'am' && hourNum === 12) hourNum = 0;
-
-    const monthIndex = monthsMap[monthName] ?? now.getMonth();
-    resultDate = new Date(yearNum, monthIndex, dayNum, hourNum, 0, 0, 0);
-    return resultDate;
+    return new Date(year, month, day, hour, minutes);
   }
 
-  // 3) Check if it matches a weekday + time pattern ("Lunes 10am", "Martes 09:00", etc.)
   match = lowerInput.match(weekdayTimeRegex);
   if (match) {
     const dayName = match[2];
-    let hourNum = parseInt(match[4], 10);
-    const minuteRaw = match[5] || '00';
-    let minuteNum = parseInt(minuteRaw, 10);
-    let ampm = match[6] || ''; // could be 'am', 'pm' or empty
+    let hour = parseInt(match[3], 10);
+    const minutes = parseInt(match[4] || '0', 10);
+    if (match[5] === 'pm' && hour < 12) hour += 12;
+    if (match[5] === 'am' && hour === 12) hour = 0;
 
-    if (ampm === 'pm' && hourNum < 12) hourNum += 12;
-    if (ampm === 'am' && hourNum === 12) hourNum = 0;
+    const targetDay = daysMap[dayName];
+    const date = new Date(now);
+    date.setDate(now.getDate() + ((7 + targetDay - now.getDay()) % 7));
+    date.setHours(hour, minutes, 0, 0);
 
-    // We find the next occurrence of that weekday from "now"
-    const desiredWeekday = daysMap[dayName];
-    if (desiredWeekday !== undefined) {
-      // Move resultDate forward until the day-of-week matches
-      while (resultDate.getDay() !== desiredWeekday) {
-        resultDate.setDate(resultDate.getDate() + 1);
-      }
-      // Then set hours/minutes
-      resultDate.setHours(hourNum, minuteNum, 0, 0);
-      return resultDate;
-    }
+    return date;
   }
 
-  // If all else fails, just return "now" to avoid throwing an error
-  // (In real usage, you might want to throw an error instead)
-  return resultDate;
+  match = lowerInput.match(timeOnlyRegex);
+  if (match) {
+    const hour = parseInt(match[1], 10);
+    const minutes = parseInt(match[2], 10);
+    const date = new Date(now);
+    date.setHours(hour, minutes, 0, 0);
+    return date;
+  }
+
+  return new Date(); // Fallback to current date and time
 }
+
+
 
 /**
  * Check availability for a specific date/time and suggest alternative slots in 30-minute blocks.
@@ -348,7 +332,7 @@ export async function checkAndSuggestTimes(
           });
 
           return `El horario deseado está disponible. ¿Te gustaría agendar una cita el día: *${daysOfWeek[dayOfWeek]} a las ${localBogotaString}*?`;
-        } 
+        }
 
         // Move forward 30 minutes if not available
       } else {
