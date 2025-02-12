@@ -7,7 +7,7 @@ import { createThread } from '../openai/threads/create-thread';
 import redis from '../redis/client';
 import { authorize } from '../google-calendar/client';
 import { checkAndSuggestTimes, findFreeTimes, findFreeTimesOnDate } from '../google-calendar/find-available-times';
-import { getTodayBogotaWeekday, parseStartToTimeSlot } from '../utils/parse-date';
+import { getTodayBogotaWeekday, getTomorrowBogotaWeekday, parseStartToTimeSlot } from '../utils/parse-date';
 import { bookEvent } from '../google-calendar/book-event';
 import { sendImageToWhatsApp, sendMessageToWhatsApp } from '../utils/send-whatsapp-message';
 import { getAndDownloadMedia } from '../utils/download-image';
@@ -540,6 +540,9 @@ router.post('/webhook', async (req: Request, res: Response): Promise<void> => {
           if (normalized.includes("Hoy")) {
             const weekday = getTodayBogotaWeekday(); // e.g. "Miércoles"
             normalized = normalized.replace("Hoy", weekday);
+          }else if (normalized.includes("Mañana")) {
+            const tomorrowWeekday = getTomorrowBogotaWeekday();
+            normalized = normalized.replace("Mañana", tomorrowWeekday);
           }
 
           const authForCheck = await authorize();

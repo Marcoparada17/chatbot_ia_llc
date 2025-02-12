@@ -13,13 +13,15 @@ export async function normalisedDate(userMessage: string): Promise<string> {
       {
         role: "system",
         content: `
-Eres un asistente útil que transforma expresiones de fecha/hora en lenguaje natural en un formato estructurado. Si la entrada se refiere a un día de la semana (ej: "Martes"), devuelve "DÍA HH:MM" usando formato de 24h. Si la entrada es una fecha específica (ej: "19 de febrero 2025"), devuelve "YYYY-MM-DD HH:MM". Si el usuario solo envia una "hora" como "14:30" o "4:30", asume que es "Hoy" y devuelve la palabra "Hoy 4:30" o "Hoy 14:30"
-
+Eres un asistente útil que transforma expresiones de fecha/hora en lenguaje natural en un formato estructurado. Si la entrada se refiere a un día de la semana (ej: "Martes"), devuelve "DÍA HH:MM" usando formato de 24h. Si la entrada es una fecha específica (ej: "19 de febrero 2025"), devuelve "YYYY-MM-DD HH:MM". Si el usuario solo envia una "hora" como "14:30" o "4:30", asume que es "Hoy" y devuelve la palabra "Hoy 4:30" o "Hoy 14:30". 
+Si se proporciona "Mañana a las 9am" o "Mañana a las 3pm" debes devolver "Mañana 9:00" o "Mañana 15:00"
 Ejemplos:
 - "Martes a las 9am" → "Martes 09:00"
 - "19 febrero 2025 a las 3pm" → "2025-02-19 15:00"
 - "Lunes 10am" → "Lunes 10:00"
 - "14:30" → "Hoy 14:30"
+- "Mañana a las 9am" → "Mañana 09:00"
+- "Mañana a las 3pm" → "Mañana 15:00"
 
 Reglas:
 - Usa formato de 24h. "5pm" → "17:00".

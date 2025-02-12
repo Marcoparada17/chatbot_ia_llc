@@ -32,3 +32,12 @@ export function getTodayBogotaWeekday(): string {
     const bogotaNow = new Date(new Date().toLocaleString("en-US", { timeZone: "America/Bogota" }));
     return daysOfWeek[bogotaNow.getDay()];
   }
+
+export function getTomorrowBogotaWeekday(): string {
+    const daysOfWeek = ["Domingo","Lunes","Martes","Miércoles","Jueves","Viernes","Sábado"];
+    // Current time in Bogota
+    const bogotaNow = new Date(new Date().toLocaleString("en-US", { timeZone: "America/Bogota" }));
+    // Advance one day
+    bogotaNow.setDate(bogotaNow.getDate() + 1);
+    return daysOfWeek[bogotaNow.getDay()];
+  }
