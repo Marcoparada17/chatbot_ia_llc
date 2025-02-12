@@ -31,19 +31,19 @@ export const sendMessageToWhatsApp = async (phoneNumberId: string, to: string, t
     );
 
     // Insert the outgoing message into the database
-    // await insertMessage(to, text, 'text', 'outgoing');
+    await insertMessage(to, text, 'text', 'outgoing');
 
     // // Push the update via SSE
-    // pushSSEUpdate({
-    //   type: 'NEW_MESSAGE',
-    //   user_id: to,
-    //   message: {
-    //     id: `outgoing-${Date.now()}`, // Unique ID for outgoing messages
-    //     message_body: text,
-    //     direction: 'outgoing',
-    //     timestamp: new Date().toISOString(),
-    //   },
-    // });
+    pushSSEUpdate({
+      type: 'NEW_MESSAGE',
+      user_id: to,
+      message: {
+        id: `outgoing-${Date.now()}`, // Unique ID for outgoing messages
+        message_body: text,
+        direction: 'outgoing',
+        timestamp: new Date().toISOString(),
+      },
+    });
 
     console.log(`New outgoing message to ${to} pushed via SSE.`);
   } catch (error: any) {
