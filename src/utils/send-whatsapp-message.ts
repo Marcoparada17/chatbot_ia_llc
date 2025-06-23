@@ -2,8 +2,8 @@ import fs from 'fs';
 import axios from 'axios';
 import dotenv from 'dotenv';
 import FormData from 'form-data';
-import { insertMessage } from '../db/controllers/message_controller';
-import { pushSSEUpdate } from '../router/bot_routes';
+// import { insertMessage } from '../db/controllers/message_controller';
+// import { pushSSEUpdate } from '../router/bot_routes';
 
 dotenv.config();
 
@@ -31,19 +31,19 @@ export const sendMessageToWhatsApp = async (phoneNumberId: string, to: string, t
     );
 
     // Insert the outgoing message into the database
-    await insertMessage(to, text, 'text', 'outgoing');
+    // await insertMessage(to, text, 'text', 'outgoing');
 
     // // Push the update via SSE
-    pushSSEUpdate({
-      type: 'NEW_MESSAGE',
-      user_id: to,
-      message: {
-        id: `outgoing-${Date.now()}`, // Unique ID for outgoing messages
-        message_body: text,
-        direction: 'outgoing',
-        timestamp: new Date().toISOString(),
-      },
-    });
+    // pushSSEUpdate({
+    //   type: 'NEW_MESSAGE',
+    //   user_id: to,
+    //   message: {
+    //     id: `outgoing-${Date.now()}`, // Unique ID for outgoing messages
+    //     message_body: text,
+    //     direction: 'outgoing',
+    //     timestamp: new Date().toISOString(),
+    //   },
+    // });
 
     console.log(`New outgoing message to ${to} pushed via SSE.`);
   } catch (error: any) {
@@ -79,6 +79,68 @@ export const sendImageToWhatsApp = async (phoneNumberId: string, to: string, ima
   }
 };
 
+export const sendAudioToWhatsApp = async (
+  phoneNumberId: string,
+  to: string,
+  audio_id: string
+) => {
+  try {
+    const response = await axios.post(
+      `https://graph.facebook.com/v22.0/${phoneNumberId}/messages?access_token=${WHATSAPP_API_TOKEN}`,
+      {
+        messaging_product: 'whatsapp',
+        to,
+        type: 'audio',
+        audio: {
+          id: audio_id,
+        },
+      },
+      { headers: { 'Content-Type': 'application/json' } } // ✅ Correct header
+    );
+    console.log(response.data);
+    return response.data
+  } catch (error: any) {
+    console.error(
+      'Error sending WhatsApp audio message:',
+      error.response?.data || error.message
+    );
+    throw error;
+  }
+};
+
+export const checkWhatsAppMessageStatus = async (messageId: string) => {
+  try {
+    const response = await axios.get(
+      `https://graph.facebook.com/v22.0/${messageId}?access_token=${WHATSAPP_API_TOKEN}`
+    );
+
+    console.log("Message Status:", response.data);
+    return response.data;
+  } catch (error: any) {
+    console.error(
+      "Error checking WhatsApp message status:",
+      error.response?.data || error.message
+    );
+    throw error;
+  }
+};
+
+export const checkWhatsAppMediaStatus = async (media_id: string) => {
+  try {
+    const response = await axios.get(
+      `https://graph.facebook.com/v22.0/${media_id}?access_token=${WHATSAPP_API_TOKEN}`
+    );
+
+    console.log('Media Status:', response.data);
+    return response.data;
+  } catch (error: any) {
+    console.error(
+      'Error checking WhatsApp media status:',
+      error.response?.data || error.message
+    );
+    throw error;
+  }
+};
 export const uploadMedia = async (
   phoneNumberId: string,
   path: string,
